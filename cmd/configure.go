@@ -47,7 +47,7 @@ var configureCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Println("Configuration saved successfully.")
+		fmt.Fprintln(cmd.OutOrStdout(), "Configuration saved successfully.")
 		return nil
 	},
 }

@@ -115,3 +115,67 @@ func TestCommentSuccess(t *testing.T) {
 		t.Errorf("expected output to contain confirmation, got: %s", buf.String())
 	}
 }
+
+func TestCommentLinkNotFound(t *testing.T) {
+	t.Cleanup(resetCmd)
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}
+	setupTestEnv(t, handler)
+
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"comment", "--insecure", "https://example.com", "Great read"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !bytes.Contains([]byte(err.Error()), []byte("link not found")) {
+		t.Errorf("expected error to contain 'link not found', got: %v", err)
+	}
+}
+
+func TestUpvoteMissingArg(t *testing.T) {
+	t.Cleanup(resetCmd)
+
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"upvote"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for missing argument")
+	}
+}
+
+func TestCommentMissingArgs(t *testing.T) {
+	t.Cleanup(resetCmd)
+
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"comment", "https://example.com"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for missing argument")
+	}
+}
+
+func TestCommentExtraArgs(t *testing.T) {
+	t.Cleanup(resetCmd)
+
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"comment", "https://example.com", "body", "extra"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for extra argument")
+	}
+}

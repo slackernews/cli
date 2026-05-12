@@ -218,3 +218,35 @@ func TestNetworkError(t *testing.T) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
+
+func TestHTTPSRequirement(t *testing.T) {
+	client := &Client{
+		baseURL:    "http://example.com",
+		httpClient: &http.Client{Timeout: 100 * time.Millisecond},
+		token:      "test-token",
+		insecure:   false,
+	}
+
+	_, err := client.GetLinks("7d", 1)
+	if err == nil {
+		t.Fatal("expected error for HTTP URL without insecure")
+	}
+	if !strings.Contains(err.Error(), "insecure URL detected") {
+		t.Errorf("expected 'insecure URL detected' error, got: %v", err)
+	}
+}
+
+func TestPathEscapeWithSpaces(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/cli/links/https://example.com/path with spaces/upvote" {
+			t.Errorf("unexpected path: %s (raw: %s)", r.URL.Path, r.URL.RawPath)
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+	client, ts := newTestClient(handler)
+	defer ts.Close()
+
+	if err := client.Upvote("https://example.com/path with spaces"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
