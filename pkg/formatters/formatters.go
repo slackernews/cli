@@ -3,6 +3,7 @@ package formatters
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -24,9 +25,9 @@ type jsonLink struct {
 }
 
 // FormatTable renders links as a human-readable terminal table.
-func FormatTable(links []api.RenderableLink) {
+func FormatTable(w io.Writer, links []api.RenderableLink) {
 	if len(links) == 0 {
-		fmt.Println("No links found")
+		fmt.Fprintln(w, "No links found")
 		return
 	}
 
@@ -74,7 +75,7 @@ func FormatTable(links []api.RenderableLink) {
 		}).
 		Width(width)
 
-	fmt.Println(t.Render())
+	fmt.Fprintln(w, t.Render())
 }
 
 // FormatJSON renders links as a JSON array.

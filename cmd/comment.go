@@ -21,7 +21,7 @@ var commentCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("Comment posted successfully")
+		fmt.Fprintln(cmd.OutOrStdout(), "Comment posted successfully")
 		return nil
 	},
 }

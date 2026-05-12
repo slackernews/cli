@@ -29,10 +29,10 @@ var topCmd = &cobra.Command{
 
 		if len(links) == 0 {
 			if topJSON {
-				fmt.Println("[]")
+				fmt.Fprintln(cmd.OutOrStdout(), "[]")
 				return nil
 			}
-			fmt.Println("No links found")
+			fmt.Fprintln(cmd.OutOrStdout(), "No links found")
 			return nil
 		}
 
@@ -41,11 +41,11 @@ var topCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			fmt.Println(string(out))
+			fmt.Fprintln(cmd.OutOrStdout(), string(out))
 			return nil
 		}
 
-		formatters.FormatTable(links)
+		formatters.FormatTable(cmd.OutOrStdout(), links)
 		return nil
 	},
 }
