@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -213,23 +214,7 @@ func TestNetworkError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if err.Error() != "server unreachable: dial tcp 127.0.0.1:1: connect: connection refused" {
-		// Accept any error containing "server unreachable"
-		if !contains(err.Error(), "server unreachable") {
-			t.Errorf("unexpected error message: %v", err)
-		}
+	if !strings.Contains(err.Error(), "connection refused") && !strings.Contains(err.Error(), "server unreachable") {
+		t.Errorf("unexpected error message: %v", err)
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSub(s, substr))
-}
-
-func containsSub(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/slackernews/cli/pkg/api"
-	"github.com/slackernews/cli/pkg/formatters"
 	"github.com/spf13/cobra"
 )
 
@@ -15,7 +12,7 @@ var searchCmd = &cobra.Command{
 	Short: "Search links by keyword",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := api.NewClient(globalInsecure)
+		client, err := api.NewClient(allowInsecure)
 		if err != nil {
 			return err
 		}
@@ -25,26 +22,7 @@ var searchCmd = &cobra.Command{
 			return err
 		}
 
-		if len(links) == 0 {
-			if searchJSON {
-				fmt.Fprintln(cmd.OutOrStdout(), "[]")
-				return nil
-			}
-			fmt.Fprintln(cmd.OutOrStdout(), "No links found")
-			return nil
-		}
-
-		if searchJSON {
-			out, err := formatters.FormatJSON(links)
-			if err != nil {
-				return err
-			}
-			fmt.Fprintln(cmd.OutOrStdout(), string(out))
-			return nil
-		}
-
-		formatters.FormatTable(cmd.OutOrStdout(), links)
-		return nil
+		return printLinks(cmd, links, searchJSON)
 	},
 }
 

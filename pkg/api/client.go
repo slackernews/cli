@@ -3,10 +3,15 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/slackernews/cli/pkg/auth"
@@ -67,16 +72,29 @@ func NewClient(insecure bool) (*Client, error) {
 		return nil, err
 	}
 
+	timeout := 30 * time.Second
+	if d := os.Getenv("SLACKERNEWS_TIMEOUT"); d != "" {
+		if parsed, err := time.ParseDuration(d); err == nil && parsed > 0 {
+			timeout = parsed
+		}
+	}
+
 	return &Client{
-		baseURL:    cfg.InstanceURL,
-		httpClient: &http.Client{Timeout: 30 * time.Second},
-		token:      token,
-		insecure:   insecure,
+		baseURL: cfg.InstanceURL,
+		httpClient: &http.Client{
+			Timeout: timeout,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
+		token:    token,
+		insecure: insecure,
 	}, nil
 }
 
 func (c *Client) request(method, path string, body interface{}) (*http.Response, error) {
-	u, err := url.Parse(c.baseURL + path)
+	base := strings.TrimSuffix(c.baseURL, "/")
+	u, err := url.Parse(base + path)
 	if err != nil {
 		return nil, err
 	}
@@ -100,12 +118,24 @@ func (c *Client) request(method, path string, body interface{}) (*http.Response,
 	}
 
 	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() {
+			return nil, fmt.Errorf("connection timed out: %w", err)
+		}
+		if opErr, ok := err.(*net.OpError); ok {
+			if dnsErr, ok := opErr.Err.(*net.DNSError); ok {
+				return nil, fmt.Errorf("DNS lookup failed (%s): %w", dnsErr.Name, err)
+			}
+		}
+		if errors.Is(err, syscall.ECONNREFUSED) {
+			return nil, fmt.Errorf("connection refused: %w", err)
+		}
 		return nil, fmt.Errorf("server unreachable: %w", err)
 	}
 
@@ -140,7 +170,22 @@ func (c *Client) Delete(path string) (*http.Response, error) {
 // DecodeJSON reads and decodes a JSON response body.
 func DecodeJSON(resp *http.Response, v interface{}) error {
 	defer resp.Body.Close()
-	return json.NewDecoder(resp.Body).Decode(v)
+	if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
+		return fmt.Errorf("failed to decode response from %s %s: %w", resp.Request.Method, resp.Request.URL.Path, err)
+	}
+	return nil
+}
+
+func decodeLinks(resp *http.Response) ([]RenderableLink, error) {
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("unexpected status: %s", resp.Status)
+	}
+	var links []RenderableLink
+	if err := DecodeJSON(resp, &links); err != nil {
+		return nil, err
+	}
+	return links, nil
 }
 
 // GetLinks fetches top links for a duration and page.
@@ -150,15 +195,7 @@ func (c *Client) GetLinks(duration string, page int) ([]RenderableLink, error) {
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("unexpected status: %s", resp.Status)
-	}
-	var links []RenderableLink
-	if err := DecodeJSON(resp, &links); err != nil {
-		return nil, err
-	}
-	return links, nil
+	return decodeLinks(resp)
 }
 
 // SearchLinks searches links by query.
@@ -168,20 +205,12 @@ func (c *Client) SearchLinks(query string) ([]RenderableLink, error) {
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("unexpected status: %s", resp.Status)
-	}
-	var links []RenderableLink
-	if err := DecodeJSON(resp, &links); err != nil {
-		return nil, err
-	}
-	return links, nil
+	return decodeLinks(resp)
 }
 
 // Upvote upvotes a link by its URL.
 func (c *Client) Upvote(linkID string) error {
-	path := fmt.Sprintf("/api/v1/cli/links/%s/upvote", url.QueryEscape(linkID))
+	path := fmt.Sprintf("/api/v1/cli/links/%s/upvote", url.PathEscape(linkID))
 	resp, err := c.Post(path, nil)
 	if err != nil {
 		return err
@@ -198,7 +227,7 @@ func (c *Client) Upvote(linkID string) error {
 
 // Unvote removes an upvote from a link by its URL.
 func (c *Client) Unvote(linkID string) error {
-	path := fmt.Sprintf("/api/v1/cli/links/%s/upvote", url.QueryEscape(linkID))
+	path := fmt.Sprintf("/api/v1/cli/links/%s/upvote", url.PathEscape(linkID))
 	resp, err := c.Delete(path)
 	if err != nil {
 		return err
@@ -215,7 +244,7 @@ func (c *Client) Unvote(linkID string) error {
 
 // Comment posts a comment on a link by its URL.
 func (c *Client) Comment(linkID string, body string) error {
-	path := fmt.Sprintf("/api/v1/cli/links/%s/comments", url.QueryEscape(linkID))
+	path := fmt.Sprintf("/api/v1/cli/links/%s/comments", url.PathEscape(linkID))
 	resp, err := c.Post(path, map[string]string{"body": body})
 	if err != nil {
 		return err

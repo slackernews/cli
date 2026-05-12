@@ -1,0 +1,32 @@
+package cmd
+
+import (
+	"fmt"
+
+	"github.com/slackernews/cli/pkg/api"
+	"github.com/slackernews/cli/pkg/formatters"
+	"github.com/spf13/cobra"
+)
+
+func printLinks(cmd *cobra.Command, links []api.RenderableLink, asJSON bool) error {
+	if len(links) == 0 {
+		if asJSON {
+			fmt.Fprintln(cmd.OutOrStdout(), "[]")
+			return nil
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), "No links found")
+		return nil
+	}
+
+	if asJSON {
+		out, err := formatters.FormatJSON(links)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(out))
+		return nil
+	}
+
+	formatters.FormatTable(cmd.OutOrStdout(), links)
+	return nil
+}

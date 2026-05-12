@@ -29,7 +29,7 @@ var configureCmd = &cobra.Command{
 			return fmt.Errorf("invalid URL: %w", err)
 		}
 
-		if u.Scheme != "https" && !globalInsecure {
+		if u.Scheme != "https" && !allowInsecure {
 			return fmt.Errorf("URL must use https:// (use --insecure to allow http:// for development)")
 		}
 

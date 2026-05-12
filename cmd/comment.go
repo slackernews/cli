@@ -12,7 +12,7 @@ var commentCmd = &cobra.Command{
 	Short: "Comment on a link",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := api.NewClient(globalInsecure)
+		client, err := api.NewClient(allowInsecure)
 		if err != nil {
 			return err
 		}

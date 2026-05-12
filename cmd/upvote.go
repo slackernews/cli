@@ -12,7 +12,7 @@ var upvoteCmd = &cobra.Command{
 	Short: "Upvote a link",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := api.NewClient(globalInsecure)
+		client, err := api.NewClient(allowInsecure)
 		if err != nil {
 			return err
 		}

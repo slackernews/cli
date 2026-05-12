@@ -27,10 +27,11 @@ func setupTestEnv(t *testing.T, handler http.HandlerFunc) {
 }
 
 func resetCmd() {
-	globalInsecure = false
+	allowInsecure = false
 	topJSON = false
 	searchJSON = false
-	rootCmd.SetArgs(nil)
+	topDuration = "7d"
+	rootCmd.SetArgs([]string{})
 	rootCmd.SetOut(nil)
 	rootCmd.SetErr(nil)
 }
@@ -60,8 +61,18 @@ func TestTopJSON(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !bytes.Contains(buf.Bytes(), []byte(`"title": "Example"`)) {
-		t.Errorf("expected output to contain title, got: %s", buf.String())
+	var links []map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &links); err != nil {
+		t.Fatalf("failed to unmarshal output: %v\noutput: %s", err, buf.String())
+	}
+	if len(links) != 1 {
+		t.Fatalf("expected 1 link, got %d", len(links))
+	}
+	if links[0]["title"] != "Example" {
+		t.Errorf("expected title 'Example', got %v", links[0]["title"])
+	}
+	if links[0]["url"] != "https://example.com" {
+		t.Errorf("expected url 'https://example.com', got %v", links[0]["url"])
 	}
 }
 

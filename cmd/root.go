@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var globalInsecure bool
+var allowInsecure bool
 
 var rootCmd = &cobra.Command{
 	Use:   "slackernews",
@@ -24,5 +24,5 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&globalInsecure, "insecure", false, "Allow non-HTTPS URLs (development only)")
+	rootCmd.PersistentFlags().BoolVar(&allowInsecure, "insecure", false, "Allow non-HTTPS URLs (development only)")
 }

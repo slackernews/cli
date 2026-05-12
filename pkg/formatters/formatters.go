@@ -24,6 +24,13 @@ type jsonLink struct {
 	FirstSharedBy string  `json:"firstSharedBy"`
 }
 
+func linkTitle(link api.RenderableLink) string {
+	if link.Link.Title != "" {
+		return link.Link.Title
+	}
+	return link.Link.URL
+}
+
 // FormatTable renders links as a human-readable terminal table.
 func FormatTable(w io.Writer, links []api.RenderableLink) {
 	if len(links) == 0 {
@@ -38,10 +45,7 @@ func FormatTable(w io.Writer, links []api.RenderableLink) {
 
 	rows := make([][]string, len(links))
 	for i, link := range links {
-		title := link.Link.Title
-		if title == "" {
-			title = link.Link.URL
-		}
+		title := linkTitle(link)
 
 		// Reserve space for other columns
 		maxTitle := width - 30
@@ -82,14 +86,10 @@ func FormatTable(w io.Writer, links []api.RenderableLink) {
 func FormatJSON(links []api.RenderableLink) ([]byte, error) {
 	out := make([]jsonLink, len(links))
 	for i, link := range links {
-		title := link.Link.Title
-		if title == "" {
-			title = link.Link.URL
-		}
 		out[i] = jsonLink{
 			ID:            link.Link.URL,
 			URL:           link.Link.URL,
-			Title:         title,
+			Title:         linkTitle(link),
 			Score:         link.DisplayScore,
 			ReplyCount:    link.ReplyCount,
 			IsUpvoted:     link.IsUpvoted,
@@ -103,6 +103,9 @@ func FormatJSON(links []api.RenderableLink) ([]byte, error) {
 func formatAge(timestamp int64) string {
 	t := time.UnixMilli(timestamp)
 	d := time.Since(t)
+	if d < 0 {
+		d = -d
+	}
 
 	if d < time.Hour {
 		return fmt.Sprintf("%dm", int(d.Minutes()))
