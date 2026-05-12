@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/slackernews/cli/pkg/api"
 	"github.com/spf13/cobra"
 )
 
@@ -12,12 +11,12 @@ var unvoteCmd = &cobra.Command{
 	Short: "Remove your upvote from a link",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := api.NewClient(allowInsecure)
+		client, err := createClient(allowInsecure)
 		if err != nil {
 			return err
 		}
 
-		if err := client.Unvote(args[0]); err != nil {
+		if err := client.Unvote(cmd.Context(), args[0]); err != nil {
 			return err
 		}
 

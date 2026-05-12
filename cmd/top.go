@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/slackernews/cli/pkg/api"
 	"github.com/spf13/cobra"
 )
 
@@ -14,12 +13,12 @@ var topCmd = &cobra.Command{
 	Use:   "top",
 	Short: "List top-ranked links",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := api.NewClient(allowInsecure)
+		client, err := createClient(allowInsecure)
 		if err != nil {
 			return err
 		}
 
-		links, err := client.GetLinks(topDuration, 1)
+		links, err := client.GetLinks(cmd.Context(), topDuration, 1)
 		if err != nil {
 			return err
 		}

@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,10 +14,23 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/slackernews/cli/pkg/auth"
-	"github.com/slackernews/cli/pkg/config"
 )
+
+// Error types for distinct exit codes and programmatic handling.
+type (
+	AuthError     struct{ Message string }
+	NetworkError  struct{ Message string }
+	ServerError   struct{ Message string }
+	RateLimitError struct {
+		Message    string
+		RetryAfter time.Duration
+	}
+)
+
+func (e *AuthError) Error() string     { return e.Message }
+func (e *NetworkError) Error() string  { return e.Message }
+func (e *ServerError) Error() string   { return e.Message }
+func (e *RateLimitError) Error() string { return e.Message }
 
 // Link represents a SlackerNews link.
 type Link struct {
@@ -56,20 +70,14 @@ type Client struct {
 	insecure   bool
 }
 
-// NewClient creates an API client using saved configuration.
-func NewClient(insecure bool) (*Client, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
+// NewClient creates an API client with the given parameters.
+func NewClient(baseURL, token string, insecure bool) (*Client, error) {
+	if baseURL == "" {
+		return nil, &NetworkError{Message: "not configured: run 'slackernews configure --url <url>'"}
 	}
 
-	if cfg.InstanceURL == "" {
-		return nil, fmt.Errorf("not configured: run 'slackernews configure --url <url>'")
-	}
-
-	token, err := auth.GetToken()
-	if err != nil {
-		return nil, err
+	if token == "" {
+		return nil, &AuthError{Message: "no API token found: run 'slackernews configure --token <token>' or set SLACKERNEWS_TOKEN"}
 	}
 
 	timeout := 30 * time.Second
@@ -80,7 +88,7 @@ func NewClient(insecure bool) (*Client, error) {
 	}
 
 	return &Client{
-		baseURL: cfg.InstanceURL,
+		baseURL: baseURL,
 		httpClient: &http.Client{
 			Timeout: timeout,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -92,7 +100,7 @@ func NewClient(insecure bool) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) request(method, path string, body interface{}) (*http.Response, error) {
+func (c *Client) request(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
 	base := strings.TrimSuffix(c.baseURL, "/")
 	u, err := url.Parse(base + path)
 	if err != nil {
@@ -100,7 +108,7 @@ func (c *Client) request(method, path string, body interface{}) (*http.Response,
 	}
 
 	if u.Scheme != "https" && !c.insecure {
-		return nil, fmt.Errorf("insecure URL detected: %s (use --insecure)", c.baseURL)
+		return nil, &NetworkError{Message: fmt.Sprintf("insecure URL detected: %s (use --insecure)", c.baseURL)}
 	}
 
 	var bodyReader io.Reader
@@ -112,7 +120,7 @@ func (c *Client) request(method, path string, body interface{}) (*http.Response,
 		bodyReader = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, u.String(), bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), bodyReader)
 	if err != nil {
 		return nil, err
 	}
@@ -126,45 +134,106 @@ func (c *Client) request(method, path string, body interface{}) (*http.Response,
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		if urlErr, ok := err.(*url.Error); ok && urlErr.Timeout() {
-			return nil, fmt.Errorf("connection timed out: %w", err)
+			return nil, &NetworkError{Message: fmt.Sprintf("connection timed out: %v", err)}
 		}
 		if opErr, ok := err.(*net.OpError); ok {
 			if dnsErr, ok := opErr.Err.(*net.DNSError); ok {
-				return nil, fmt.Errorf("DNS lookup failed (%s): %w", dnsErr.Name, err)
+				return nil, &NetworkError{Message: fmt.Sprintf("DNS lookup failed (%s): %v", dnsErr.Name, err)}
 			}
 		}
 		if errors.Is(err, syscall.ECONNREFUSED) {
-			return nil, fmt.Errorf("connection refused: %w", err)
+			return nil, &NetworkError{Message: fmt.Sprintf("connection refused: %v", err)}
 		}
-		return nil, fmt.Errorf("server unreachable: %w", err)
+		return nil, &NetworkError{Message: fmt.Sprintf("server unreachable: %v", err)}
+	}
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		resp.Body.Close()
+		retryAfter := 0
+		if h := resp.Header.Get("Retry-After"); h != "" {
+			// Try parsing as seconds first
+			if d, err := time.ParseDuration(h + "s"); err == nil {
+				retryAfter = int(d.Seconds())
+			}
+		}
+		return nil, &RateLimitError{
+			Message:    fmt.Sprintf("rate limited: retry after %ds", retryAfter),
+			RetryAfter: time.Duration(retryAfter) * time.Second,
+		}
 	}
 
 	if resp.StatusCode >= 500 {
 		resp.Body.Close()
-		return nil, fmt.Errorf("server error: %s", resp.Status)
+		return nil, &ServerError{Message: fmt.Sprintf("server error: %s", resp.Status)}
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		resp.Body.Close()
-		return nil, fmt.Errorf("authentication failed: check your API token")
+		return nil, &AuthError{Message: "authentication failed: check your API token"}
 	}
 
 	return resp, nil
 }
 
 // Get performs a GET request.
-func (c *Client) Get(path string) (*http.Response, error) {
-	return c.request("GET", path, nil)
+func (c *Client) Get(ctx context.Context, path string) (*http.Response, error) {
+	return c.withRetry(ctx, "GET", path, nil)
 }
 
 // Post performs a POST request.
-func (c *Client) Post(path string, body interface{}) (*http.Response, error) {
-	return c.request("POST", path, body)
+func (c *Client) Post(ctx context.Context, path string, body interface{}) (*http.Response, error) {
+	return c.withRetry(ctx, "POST", path, body)
 }
 
 // Delete performs a DELETE request.
-func (c *Client) Delete(path string) (*http.Response, error) {
-	return c.request("DELETE", path, nil)
+func (c *Client) Delete(ctx context.Context, path string) (*http.Response, error) {
+	return c.withRetry(ctx, "DELETE", path, nil)
+}
+
+func (c *Client) withRetry(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+
+	backoffs := []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second}
+
+	for attempt := 0; attempt <= len(backoffs); attempt++ {
+		resp, err = c.request(ctx, method, path, body)
+		if err == nil {
+			return resp, nil
+		}
+
+		// Don't retry auth errors, client errors, or context cancellation
+		if errors.As(err, new(*AuthError)) {
+			return nil, err
+		}
+		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return nil, err
+		}
+
+		// Check if it's a retriable error
+		var netErr *NetworkError
+		var srvErr *ServerError
+		var rateErr *RateLimitError
+		isRetriable := errors.As(err, &netErr) || errors.As(err, &srvErr) || errors.As(err, &rateErr)
+		if !isRetriable {
+			return nil, err
+		}
+
+		// On last attempt, return the error
+		if attempt == len(backoffs) {
+			return nil, err
+		}
+
+		// Wait before retry, but respect context cancellation
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(backoffs[attempt]):
+			// continue to next attempt
+		}
+	}
+
+	return nil, err
 }
 
 // DecodeJSON reads and decodes a JSON response body.
@@ -189,9 +258,9 @@ func decodeLinks(resp *http.Response) ([]RenderableLink, error) {
 }
 
 // GetLinks fetches top links for a duration and page.
-func (c *Client) GetLinks(duration string, page int) ([]RenderableLink, error) {
+func (c *Client) GetLinks(ctx context.Context, duration string, page int) ([]RenderableLink, error) {
 	path := fmt.Sprintf("/api/v1/cli/links?duration=%s&page=%d", url.QueryEscape(duration), page)
-	resp, err := c.Get(path)
+	resp, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -199,9 +268,9 @@ func (c *Client) GetLinks(duration string, page int) ([]RenderableLink, error) {
 }
 
 // SearchLinks searches links by query.
-func (c *Client) SearchLinks(query string) ([]RenderableLink, error) {
+func (c *Client) SearchLinks(ctx context.Context, query string) ([]RenderableLink, error) {
 	path := fmt.Sprintf("/api/v1/cli/links/search?q=%s", url.QueryEscape(query))
-	resp, err := c.Get(path)
+	resp, err := c.Get(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -209,9 +278,9 @@ func (c *Client) SearchLinks(query string) ([]RenderableLink, error) {
 }
 
 // Upvote upvotes a link by its URL.
-func (c *Client) Upvote(linkID string) error {
+func (c *Client) Upvote(ctx context.Context, linkID string) error {
 	path := fmt.Sprintf("/api/v1/cli/links/%s/upvote", url.PathEscape(linkID))
-	resp, err := c.Post(path, nil)
+	resp, err := c.Post(ctx, path, nil)
 	if err != nil {
 		return err
 	}
@@ -226,9 +295,9 @@ func (c *Client) Upvote(linkID string) error {
 }
 
 // Unvote removes an upvote from a link by its URL.
-func (c *Client) Unvote(linkID string) error {
+func (c *Client) Unvote(ctx context.Context, linkID string) error {
 	path := fmt.Sprintf("/api/v1/cli/links/%s/upvote", url.PathEscape(linkID))
-	resp, err := c.Delete(path)
+	resp, err := c.Delete(ctx, path)
 	if err != nil {
 		return err
 	}
@@ -243,9 +312,9 @@ func (c *Client) Unvote(linkID string) error {
 }
 
 // Comment posts a comment on a link by its URL.
-func (c *Client) Comment(linkID string, body string) error {
+func (c *Client) Comment(ctx context.Context, linkID string, body string) error {
 	path := fmt.Sprintf("/api/v1/cli/links/%s/comments", url.PathEscape(linkID))
-	resp, err := c.Post(path, map[string]string{"body": body})
+	resp, err := c.Post(ctx, path, map[string]string{"body": body})
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/slackernews/cli/pkg/api"
 	"github.com/spf13/cobra"
 )
 
@@ -12,12 +11,12 @@ var upvoteCmd = &cobra.Command{
 	Short: "Upvote a link",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := api.NewClient(allowInsecure)
+		client, err := createClient(allowInsecure)
 		if err != nil {
 			return err
 		}
 
-		if err := client.Upvote(args[0]); err != nil {
+		if err := client.Upvote(cmd.Context(), args[0]); err != nil {
 			return err
 		}
 

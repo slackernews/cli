@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -45,7 +47,7 @@ func TestGetLinks(t *testing.T) {
 	client, ts := newTestClient(handler)
 	defer ts.Close()
 
-	links, err := client.GetLinks("7d", 1)
+	links, err := client.GetLinks(context.Background(), "7d", 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -71,7 +73,7 @@ func TestSearchLinks(t *testing.T) {
 	client, ts := newTestClient(handler)
 	defer ts.Close()
 
-	links, err := client.SearchLinks("kubernetes")
+	links, err := client.SearchLinks(context.Background(), "kubernetes")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -93,7 +95,7 @@ func TestUpvote(t *testing.T) {
 	client, ts := newTestClient(handler)
 	defer ts.Close()
 
-	if err := client.Upvote("https://example.com"); err != nil {
+	if err := client.Upvote(context.Background(), "https://example.com"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -105,7 +107,7 @@ func TestUpvoteAlreadyUpvoted(t *testing.T) {
 	client, ts := newTestClient(handler)
 	defer ts.Close()
 
-	err := client.Upvote("https://example.com")
+	err := client.Upvote(context.Background(), "https://example.com")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -124,7 +126,7 @@ func TestUnvote(t *testing.T) {
 	client, ts := newTestClient(handler)
 	defer ts.Close()
 
-	if err := client.Unvote("https://example.com"); err != nil {
+	if err := client.Unvote(context.Background(), "https://example.com"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -136,7 +138,7 @@ func TestUnvoteNotFound(t *testing.T) {
 	client, ts := newTestClient(handler)
 	defer ts.Close()
 
-	err := client.Unvote("https://example.com")
+	err := client.Unvote(context.Background(), "https://example.com")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -165,7 +167,7 @@ func TestComment(t *testing.T) {
 	client, ts := newTestClient(handler)
 	defer ts.Close()
 
-	if err := client.Comment("https://example.com", "Great read"); err != nil {
+	if err := client.Comment(context.Background(), "https://example.com", "Great read"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -177,9 +179,13 @@ func TestAuthError(t *testing.T) {
 	client, ts := newTestClient(handler)
 	defer ts.Close()
 
-	_, err := client.GetLinks("7d", 1)
+	_, err := client.GetLinks(context.Background(), "7d", 1)
 	if err == nil {
 		t.Fatal("expected error")
+	}
+	var authErr *AuthError
+	if !errors.As(err, &authErr) {
+		t.Errorf("expected AuthError, got: %T %v", err, err)
 	}
 	if err.Error() != "authentication failed: check your API token" {
 		t.Errorf("unexpected error message: %v", err)
@@ -193,9 +199,13 @@ func TestServerError(t *testing.T) {
 	client, ts := newTestClient(handler)
 	defer ts.Close()
 
-	_, err := client.GetLinks("7d", 1)
+	_, err := client.GetLinks(context.Background(), "7d", 1)
 	if err == nil {
 		t.Fatal("expected error")
+	}
+	var srvErr *ServerError
+	if !errors.As(err, &srvErr) {
+		t.Errorf("expected ServerError, got: %T %v", err, err)
 	}
 	if err.Error() != "server error: 500 Internal Server Error" {
 		t.Errorf("unexpected error message: %v", err)
@@ -210,12 +220,13 @@ func TestNetworkError(t *testing.T) {
 		insecure:   true,
 	}
 
-	_, err := client.GetLinks("7d", 1)
+	_, err := client.GetLinks(context.Background(), "7d", 1)
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if !strings.Contains(err.Error(), "connection refused") && !strings.Contains(err.Error(), "server unreachable") {
-		t.Errorf("unexpected error message: %v", err)
+	var netErr *NetworkError
+	if !errors.As(err, &netErr) {
+		t.Errorf("expected NetworkError, got: %T %v", err, err)
 	}
 }
 
@@ -227,9 +238,13 @@ func TestHTTPSRequirement(t *testing.T) {
 		insecure:   false,
 	}
 
-	_, err := client.GetLinks("7d", 1)
+	_, err := client.GetLinks(context.Background(), "7d", 1)
 	if err == nil {
 		t.Fatal("expected error for HTTP URL without insecure")
+	}
+	var netErr *NetworkError
+	if !errors.As(err, &netErr) {
+		t.Errorf("expected NetworkError, got: %T %v", err, err)
 	}
 	if !strings.Contains(err.Error(), "insecure URL detected") {
 		t.Errorf("expected 'insecure URL detected' error, got: %v", err)
@@ -246,7 +261,7 @@ func TestPathEscapeWithSpaces(t *testing.T) {
 	client, ts := newTestClient(handler)
 	defer ts.Close()
 
-	if err := client.Upvote("https://example.com/path with spaces"); err != nil {
+	if err := client.Upvote(context.Background(), "https://example.com/path with spaces"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

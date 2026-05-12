@@ -24,6 +24,17 @@ type jsonLink struct {
 	FirstSharedBy string  `json:"firstSharedBy"`
 }
 
+func truncateRunes(s string, max int) string {
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	if max <= 3 {
+		return string(runes[:max])
+	}
+	return string(runes[:max-3]) + "..."
+}
+
 func linkTitle(link api.RenderableLink) string {
 	if link.Link.Title != "" {
 		return link.Link.Title
@@ -52,9 +63,7 @@ func FormatTable(w io.Writer, links []api.RenderableLink) {
 		if maxTitle < 20 {
 			maxTitle = 20
 		}
-		if len(title) > maxTitle {
-			title = title[:maxTitle-3] + "..."
-		}
+		title = truncateRunes(title, maxTitle)
 
 		age := formatAge(link.FirstShare.SharedAt)
 		rows[i] = []string{

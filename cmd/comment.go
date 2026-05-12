@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/slackernews/cli/pkg/api"
 	"github.com/spf13/cobra"
 )
 
@@ -12,12 +11,12 @@ var commentCmd = &cobra.Command{
 	Short: "Comment on a link",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := api.NewClient(allowInsecure)
+		client, err := createClient(allowInsecure)
 		if err != nil {
 			return err
 		}
 
-		if err := client.Comment(args[0], args[1]); err != nil {
+		if err := client.Comment(cmd.Context(), args[0], args[1]); err != nil {
 			return err
 		}
 

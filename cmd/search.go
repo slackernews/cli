@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/slackernews/cli/pkg/api"
 	"github.com/spf13/cobra"
 )
 
@@ -12,12 +11,12 @@ var searchCmd = &cobra.Command{
 	Short: "Search links by keyword",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := api.NewClient(allowInsecure)
+		client, err := createClient(allowInsecure)
 		if err != nil {
 			return err
 		}
 
-		links, err := client.SearchLinks(args[0])
+		links, err := client.SearchLinks(cmd.Context(), args[0])
 		if err != nil {
 			return err
 		}
