@@ -23,15 +23,6 @@ jobs:
         with:
           go-version: stable
 
-      - name: Generate GitHub App token
-        uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.PRIVATE_KEY }}
-          owner: slackernews
-          repositories: cli,homebrew-tap,scoop-bucket
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -40,8 +31,9 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          SCOOP_BUCKET_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          # Fine-grained PAT with read/write access to cli, homebrew-tap, scoop-bucket
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.TAP_TOKEN }}
+          SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.TAP_TOKEN }}
 
       - name: Install WiX tools (for MSI)
         run: |

@@ -2,12 +2,9 @@
 set -euo pipefail
 
 # Slackernews Release Infrastructure Setup Script
-# Uses `gh` CLI where possible. Manual steps are documented.
+# Uses `gh` CLI to automate repository creation and secret management.
 
 echo "=== Slackernews Release Setup ==="
-echo ""
-echo "This script automates what it can via gh CLI."
-echo "Some steps MUST be done manually in the GitHub web UI."
 echo ""
 
 # Check prerequisites
@@ -47,56 +44,30 @@ for repo in "homebrew-tap" "scoop-bucket"; do
 done
 
 echo ""
-echo "Step 2: Setting up repository secrets..."
-echo ""
-echo "NOTE: You need the GitHub App ID and private key first."
-echo "If you haven't created the app yet, stop here and follow the manual steps below."
-echo ""
+echo "Step 2: Checking repository secrets..."
 
-# Check if secrets are already set
-if gh secret list --repo "$ORG/cli" | grep -q "APP_ID\|PRIVATE_KEY"; then
-    echo "  ✓ Secrets already configured on $ORG/cli"
+# Check if TAP_TOKEN is already set
+if gh secret list --repo "$ORG/cli" | grep -q "TAP_TOKEN"; then
+    echo "  ✓ TAP_TOKEN already configured on $ORG/cli"
 else
-    echo "  Secrets not found on $ORG/cli"
     echo ""
-    echo "  To set them via gh CLI:"
-    echo "    gh secret set APP_ID --repo $ORG/cli"
-    echo "    gh secret set PRIVATE_KEY --repo $ORG/cli < /path/to/private-key.pem"
+    echo "  TAP_TOKEN not found on $ORG/cli"
+    echo ""
+    echo "  You need a fine-grained Personal Access Token with:"
+    echo "    - Resource owner: slackernews"
+    echo "    - Repository access: cli, homebrew-tap, scoop-bucket"
+    echo "    - Permissions: Contents (read and write)"
+    echo ""
+    echo "  Create one at: https://github.com/settings/personal-access-tokens/new"
+    echo ""
+    echo "  Then set it via gh CLI:"
+    echo "    gh secret set TAP_TOKEN --repo $ORG/cli < /path/to/your-token.txt"
     echo ""
 fi
 
-echo ""
-echo "=== MANUAL STEPS (must be done via GitHub web UI) ==="
-echo ""
-echo "1. Create the GitHub App 'SlackerNews Releaser':"
-echo "   https://github.com/organizations/$ORG/settings/apps/new"
-echo ""
-echo "   Settings:"
-echo "   - Name: SlackerNews Releaser"
-echo "   - Homepage URL: https://slackernews.io"
-echo "   - Webhook: Uncheck 'Active'"
-echo "   - Permissions → Repository permissions:"
-echo "     - Contents: Read and write"
-echo "     - Metadata: Read"
-echo "   - 'Where can this GitHub App be installed?': Only on this account"
-echo ""
-echo "2. Generate a private key on the app's settings page"
-echo "   (download the .pem file)"
-echo ""
-echo "3. Install the app on the $ORG organization:"
-echo "   https://github.com/organizations/$ORG/settings/installations"
-echo "   Select these repositories: cli, homebrew-tap, scoop-bucket"
-echo ""
-echo "4. Get the App ID from the app's settings page"
-echo ""
-echo "5. Set the secrets on $ORG/cli:"
-echo "   gh secret set APP_ID --repo $ORG/cli"
-echo "     (paste the App ID number)"
-echo "   gh secret set PRIVATE_KEY --repo $ORG/cli < /path/to/private-key.pem"
-echo ""
 echo "=== Done! ==="
 echo ""
-echo "After completing the manual steps, push a tag to test:"
+echo "After setting TAP_TOKEN, push a tag to test:"
 echo "  git tag v0.1.0"
 echo "  git push origin v0.1.0"
 echo ""
