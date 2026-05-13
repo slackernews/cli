@@ -2,6 +2,8 @@
 
 This document covers the complete setup of the **SlackerNews Releaser** GitHub App, which enables automated releases for the CLI project using GoReleaser.
 
+> **Quick Start:** Run `scripts/setup-release-infra.sh` to automate repository creation. The GitHub App itself must still be created manually (see Step 1).
+
 > **Important:** These steps must be completed by a Slackernews organization admin (e.g., `chuck`) via the GitHub web UI. As an AI assistant, I cannot create GitHub Apps or manage organization-level permissions.
 
 ---
@@ -14,6 +16,28 @@ The **SlackerNews Releaser** GitHub App provides:
 - Homebrew formula updates on `slackernews/homebrew-tap`
 - Scoop manifest updates on `slackernews/scoop-bucket`
 - Secure, scoped access tokens for GoReleaser workflows
+
+---
+
+## Automated Setup (what gh CLI can do)
+
+The `scripts/setup-release-infra.sh` script automates repository creation using the `gh` CLI:
+
+```bash
+# Run from the repo root
+./scripts/setup-release-infra.sh
+```
+
+This script will:
+- ✅ Check for `gh` CLI authentication
+- ✅ Create `slackernews/homebrew-tap` (public repo with README)
+- ✅ Create `slackernews/scoop-bucket` (public repo with README)
+- ✅ Check if secrets are already configured on `slackernews/cli`
+
+What it **cannot** do (requires web UI):
+- ❌ Create the GitHub App (Step 1)
+- ❌ Generate the private key (Step 2)
+- ❌ Install the app on the organization (Step 4)
 
 ---
 
