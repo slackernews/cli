@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+
+PackageIdentifier: SlackerNews.Cli
+PackageVersion: "{{ .Version }}"
+PackageLocale: en-US
+Publisher: SlackerNews
+PublisherUrl: https://slackernews.io
+PublisherSupportUrl: https://github.com/slackernews/cli/issues
+PackageName: SlackerNews CLI
+PackageUrl: https://github.com/slackernews/cli
+License: MIT
+LicenseUrl: https://github.com/slackernews/cli/blob/main/LICENSE
+Copyright: Copyright (c) SlackerNews
+ShortDescription: Terminal-based link browsing and interaction for SlackerNews
+Description: |
+  Browse top links, vote, and comment on SlackerNews directly from your terminal.
+  Supports human-readable tables and JSON output for scripting and automation.
+Moniker: slackernews
+Tags:
+  - slackernews
+  - cli
+  - news
+  - links
+  - terminal
+ReleaseNotesUrl: https://github.com/slackernews/cli/releases/tag/{{ .Tag }}
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

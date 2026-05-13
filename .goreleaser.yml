@@ -105,6 +105,7 @@ scoops:
       owner: slackernews
       name: scoop-bucket
     directory: bucket
+    template: packaging/scoop/slackernews.json
     homepage: "https://slackernews.io"
     description: "SlackerNews CLI for terminal-based link browsing"
     license: MIT
