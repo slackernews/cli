@@ -20,8 +20,8 @@ func TestGetTokenFromEnv(t *testing.T) {
 	}
 }
 
-func TestGetTokenKeyringFirst(t *testing.T) {
-	// When keyring has a value, it should be returned even if env has a different value
+func TestGetTokenEnvOverridesKeyring(t *testing.T) {
+	// When env var is set, it takes precedence over keyring (important for CI)
 	t.Setenv("SLACKERNEWS_TOKEN", "env-token")
 	keyring.Set(serviceName, accountName, "keyring-token")
 	defer keyring.Delete(serviceName, accountName)
@@ -30,8 +30,8 @@ func TestGetTokenKeyringFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if token != "keyring-token" {
-		t.Errorf("expected keyring-token %q, got %q", "keyring-token", token)
+	if token != "env-token" {
+		t.Errorf("expected env-token %q, got %q", "env-token", token)
 	}
 }
 
