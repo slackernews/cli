@@ -115,9 +115,11 @@ jobs:
       - name: Configure CLI
         run: |
           cd cli
-          ./slackernews configure --url http://localhost:3000 --token "${{ steps.token.outputs.token }}" --insecure
+          ./slackernews configure --url http://localhost:3000 --insecure
 
       - name: Test CLI commands
+        env:
+          SLACKERNEWS_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           cd cli
           echo "=== Testing top command ==="
