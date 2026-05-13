@@ -148,7 +148,7 @@ func (c *Client) request(ctx context.Context, method, path string, body interfac
 	}
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		retryAfter := 0
 		if h := resp.Header.Get("Retry-After"); h != "" {
 			// Try parsing as seconds first
@@ -163,12 +163,12 @@ func (c *Client) request(ctx context.Context, method, path string, body interfac
 	}
 
 	if resp.StatusCode >= 500 {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, &ServerError{Message: fmt.Sprintf("server error: %s", resp.Status)}
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, &AuthError{Message: "authentication failed: check your API token"}
 	}
 
@@ -238,7 +238,7 @@ func (c *Client) withRetry(ctx context.Context, method, path string, body interf
 
 // DecodeJSON reads and decodes a JSON response body.
 func DecodeJSON(resp *http.Response, v interface{}) error {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
 		return fmt.Errorf("failed to decode response from %s %s: %w", resp.Request.Method, resp.Request.URL.Path, err)
 	}
@@ -247,7 +247,7 @@ func DecodeJSON(resp *http.Response, v interface{}) error {
 
 func decodeLinks(resp *http.Response) ([]RenderableLink, error) {
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("unexpected status: %s", resp.Status)
 	}
 	var links []RenderableLink
@@ -284,7 +284,7 @@ func (c *Client) Upvote(ctx context.Context, linkID string) error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode == http.StatusConflict {
 		return fmt.Errorf("already upvoted")
 	}
@@ -301,7 +301,7 @@ func (c *Client) Unvote(ctx context.Context, linkID string) error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
 		return fmt.Errorf("no vote to remove")
 	}
@@ -318,7 +318,7 @@ func (c *Client) Comment(ctx context.Context, linkID string, body string) error 
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
 		return fmt.Errorf("link not found")
 	}

@@ -45,7 +45,7 @@ func linkTitle(link api.RenderableLink) string {
 // FormatTable renders links as a human-readable terminal table.
 func FormatTable(w io.Writer, links []api.RenderableLink) {
 	if len(links) == 0 {
-		fmt.Fprintln(w, "No links found")
+		_, _ = fmt.Fprintln(w, "No links found")
 		return
 	}
 
@@ -88,7 +88,7 @@ func FormatTable(w io.Writer, links []api.RenderableLink) {
 		}).
 		Width(width)
 
-	fmt.Fprintln(w, t.Render())
+	_, _ = fmt.Fprintln(w, t.Render())
 }
 
 // FormatJSON renders links as a JSON array.

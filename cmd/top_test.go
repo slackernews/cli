@@ -41,14 +41,16 @@ func TestTopJSON(t *testing.T) {
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]api.RenderableLink{
+		if err := json.NewEncoder(w).Encode([]api.RenderableLink{
 			{
 				Link:         api.Link{URL: "https://example.com", Title: "Example"},
 				FirstShare:   api.FirstShare{SharedAt: time.Now().Add(-1 * time.Hour).UnixMilli(), FullName: "Alice"},
 				DisplayScore: 5,
 				ReplyCount:   2,
 			},
-		})
+		}); err != nil {
+			t.Fatalf("failed to encode response: %v", err)
+		}
 	}
 	setupTestEnv(t, handler)
 
@@ -81,7 +83,9 @@ func TestTopNoLinks(t *testing.T) {
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]api.RenderableLink{})
+		if err := json.NewEncoder(w).Encode([]api.RenderableLink{}); err != nil {
+			t.Fatalf("failed to encode response: %v", err)
+		}
 	}
 	setupTestEnv(t, handler)
 

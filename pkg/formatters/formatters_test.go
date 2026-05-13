@@ -70,7 +70,9 @@ func TestFormatJSONEmptyTitle(t *testing.T) {
 	}
 
 	var result []map[string]interface{}
-	json.Unmarshal(out, &result)
+	if err := json.Unmarshal(out, &result); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v", err)
+	}
 
 	if result[0]["title"] != "https://example.com" {
 		t.Errorf("expected title fallback to URL, got %v", result[0]["title"])

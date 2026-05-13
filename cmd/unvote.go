@@ -20,7 +20,7 @@ var unvoteCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Fprintln(cmd.OutOrStdout(), "Vote removed successfully")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Vote removed successfully")
 		return nil
 	},
 }

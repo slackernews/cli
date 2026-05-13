@@ -11,10 +11,10 @@ import (
 func printLinks(cmd *cobra.Command, links []api.RenderableLink, asJSON bool) error {
 	if len(links) == 0 {
 		if asJSON {
-			fmt.Fprintln(cmd.OutOrStdout(), "[]")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "[]")
 			return nil
 		}
-		fmt.Fprintln(cmd.OutOrStdout(), "No links found")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No links found")
 		return nil
 	}
 
@@ -23,7 +23,7 @@ func printLinks(cmd *cobra.Command, links []api.RenderableLink, asJSON bool) err
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(cmd.OutOrStdout(), string(out))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(out))
 		return nil
 	}
 

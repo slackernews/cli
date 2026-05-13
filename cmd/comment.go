@@ -20,7 +20,7 @@ var commentCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Fprintln(cmd.OutOrStdout(), "Comment posted successfully")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Comment posted successfully")
 		return nil
 	},
 }

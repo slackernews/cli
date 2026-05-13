@@ -20,7 +20,7 @@ var upvoteCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Fprintln(cmd.OutOrStdout(), "Upvoted successfully")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Upvoted successfully")
 		return nil
 	},
 }

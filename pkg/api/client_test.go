@@ -34,7 +34,7 @@ func TestGetLinks(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]RenderableLink{
+		if err := json.NewEncoder(w).Encode([]RenderableLink{
 			{
 				Link:         Link{URL: "https://example.com", Title: "Example"},
 				FirstShare:   FirstShare{SharedAt: time.Now().Add(-1 * time.Hour).UnixMilli(), FullName: "Alice"},
@@ -42,7 +42,9 @@ func TestGetLinks(t *testing.T) {
 				IsUpvoted:    false,
 				ReplyCount:   2,
 			},
-		})
+		}); err != nil {
+			t.Fatalf("failed to encode response: %v", err)
+		}
 	}
 	client, ts := newTestClient(handler)
 	defer ts.Close()
@@ -68,7 +70,9 @@ func TestSearchLinks(t *testing.T) {
 			t.Errorf("unexpected query: %s", r.URL.Query().Get("q"))
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]RenderableLink{})
+		if err := json.NewEncoder(w).Encode([]RenderableLink{}); err != nil {
+			t.Fatalf("failed to encode response: %v", err)
+		}
 	}
 	client, ts := newTestClient(handler)
 	defer ts.Close()

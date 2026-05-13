@@ -101,9 +101,13 @@ func TestLoadInvalidJSON(t *testing.T) {
 
 	// Write invalid JSON to config file
 	dir, _ := configDir()
-	os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("failed to create config dir: %v", err)
+	}
 	path := filepath.Join(dir, "config.json")
-	os.WriteFile(path, []byte("{not json"), 0600)
+	if err := os.WriteFile(path, []byte("{not json"), 0600); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
 
 	_, err := Load()
 	if err == nil {
@@ -116,10 +120,17 @@ func TestLoadValidJSON(t *testing.T) {
 	t.Setenv("HOME", tmpDir)
 
 	dir, _ := configDir()
-	os.MkdirAll(dir, 0755)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("failed to create config dir: %v", err)
+	}
 	path := filepath.Join(dir, "config.json")
-	data, _ := json.Marshal(Config{InstanceURL: "https://test.com"})
-	os.WriteFile(path, data, 0600)
+	data, err := json.Marshal(Config{InstanceURL: "https://test.com"})
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
 
 	cfg, err := Load()
 	if err != nil {
