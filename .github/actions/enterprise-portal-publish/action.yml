@@ -1,0 +1,122 @@
+name: 'Publish to Enterprise Portal'
+description: >-
+  Copies the MSI, macOS, and Linux binaries into the enterprise-portal repo and
+  opens two pull requests: one targeting main (replaces previous binaries) and one
+  targeting a version branch matching the release tag (creates the branch if it
+  does not exist).
+
+inputs:
+  github-token:
+    description: 'GitHub token with write access to the enterprise-portal repository'
+    required: true
+  release-tag:
+    description: 'The release tag (e.g. v0.1.0)'
+    required: true
+  enterprise-portal-repo:
+    description: 'Owner/name of the enterprise-portal repository'
+    default: 'slackernews/slackernews-enterprise-portal'
+    required: false
+  workspace-path:
+    description: 'Path to the workspace that contains the dist/ directory'
+    default: '.'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Clone enterprise-portal repo and push PR branches
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        RELEASE_TAG: ${{ inputs.release-tag }}
+        PORTAL_REPO: ${{ inputs.enterprise-portal-repo }}
+        WORKSPACE: ${{ inputs.workspace-path }}
+      run: |
+        set -euo pipefail
+
+        # Configure git
+        git config --global user.name  "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+        PORTAL_DIR="/tmp/enterprise-portal"
+        rm -rf "$PORTAL_DIR"
+
+        gh repo clone "$PORTAL_REPO" "$PORTAL_DIR"
+        cd "$PORTAL_DIR"
+        git fetch origin
+
+        # ------------------------------------------------------------------
+        # Helper: create a PR from a fresh branch off $target_branch
+        # ------------------------------------------------------------------
+        create_pr() {
+          local target_branch="$1"
+          local pr_branch="$2"
+          local title="$3"
+          local body="$4"
+
+          git checkout "$target_branch"
+          git checkout -b "$pr_branch"
+
+          mkdir -p assets
+          cp "${WORKSPACE}/dist/slackernews_darwin_amd64_v1/slackernews" assets/slackernews-darwin-amd64
+          cp "${WORKSPACE}/dist/slackernews_darwin_arm64/slackernews"     assets/slackernews-darwin-arm64
+          cp "${WORKSPACE}/dist/slackernews_linux_amd64_v1/slackernews"  assets/slackernews-linux-amd64
+          cp "${WORKSPACE}/dist/slackernews_linux_arm64/slackernews"     assets/slackernews-linux-arm64
+          cp "${WORKSPACE}/dist/slackernews_${RELEASE_TAG}_windows_x86_64.msi" \
+             assets/slackernews-windows-amd64.msi
+
+          git add assets/
+          git commit -m "$title" || {
+            echo "No changes to commit for $target_branch"
+            return 0
+          }
+          git push origin "$pr_branch"
+
+          existing_pr=$(
+            gh pr list \
+              --repo "$PORTAL_REPO" \
+              --head "$pr_branch" \
+              --json number \
+              --jq '.[0].number' 2>/dev/null || true
+          )
+
+          if [ -n "$existing_pr" ] && [ "$existing_pr" != "null" ]; then
+            echo "PR already exists for branch $pr_branch: #$existing_pr"
+          else
+            gh pr create \
+              --repo "$PORTAL_REPO" \
+              --base "$target_branch" \
+              --head "$pr_branch" \
+              --title "$title" \
+              --body "$body"
+          fi
+        }
+
+        # ------------------------------------------------------------------
+        # PR 1 — main branch (replaces any previous binaries)
+        # ------------------------------------------------------------------
+        create_pr \
+          "main" \
+          "update-assets-${RELEASE_TAG}-main" \
+          "chore(assets): update binaries for ${RELEASE_TAG}" \
+          "Automated update of CLI binaries for release ${RELEASE_TAG}.\n\nReplaces previous versions in \`assets/\` directory."
+
+        # ------------------------------------------------------------------
+        # PR 2 — version branch (create it if missing, then PR to it)
+        # ------------------------------------------------------------------
+        if git ls-remote --exit-code --heads origin "${RELEASE_TAG}" > /dev/null 2>&1; then
+          echo "Version branch ${RELEASE_TAG} exists. Creating PR to it."
+          version_branch="${RELEASE_TAG}"
+        else
+          echo "Version branch ${RELEASE_TAG} does not exist. Creating it from main."
+          git checkout main
+          git checkout -b "${RELEASE_TAG}"
+          git push origin "${RELEASE_TAG}"
+          version_branch="${RELEASE_TAG}"
+        fi
+
+        create_pr \
+          "$version_branch" \
+          "update-assets-${RELEASE_TAG}-version" \
+          "chore(assets): add binaries for ${RELEASE_TAG}" \
+          "Automated addition of CLI binaries for release ${RELEASE_TAG} on version branch."

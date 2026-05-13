@@ -53,3 +53,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "${GITHUB_REF_NAME}" dist/slackernews_${GITHUB_REF_NAME}_windows_x86_64.msi --clobber
+
+      - name: Publish binaries to enterprise portal
+        uses: ./.github/actions/enterprise-portal-publish
+        with:
+          github-token: ${{ secrets.ENTERPRISE_PORTAL_TOKEN }}
+          release-tag: ${{ github.ref_name }}

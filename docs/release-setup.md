@@ -14,6 +14,8 @@ The release workflow uses a single fine-grained PAT with access to three reposit
 - `slackernews/homebrew-tap` — Update Homebrew formula
 - `slackernews/scoop-bucket` — Update Scoop manifest
 
+In addition, a **second** fine-grained PAT (`ENTERPRISE_PORTAL_TOKEN`) with access to `slackernews/slackernews-enterprise-portal` is required to publish release binaries to the enterprise portal.
+
 ---
 
 ## Automated Setup (gh CLI)
@@ -29,7 +31,9 @@ This will:
 - ✅ Check for `gh` CLI authentication
 - ✅ Create `slackernews/homebrew-tap` (public repo with README)
 - ✅ Create `slackernews/scoop-bucket` (public repo with README)
+- ✅ Create `slackernews/slackernews-enterprise-portal` (public repo with README) if it doesn't exist
 - ✅ Check if `TAP_TOKEN` secret is already configured
+- ✅ Check if `ENTERPRISE_PORTAL_TOKEN` secret is already configured
 
 ---
 
@@ -59,20 +63,35 @@ This will:
    | **Contents** | Read and write |
    | **Metadata** | Read |
 
+### Step 1b: Enterprise Portal Token
+
+Create a second fine-grained PAT for the enterprise portal:
+
+1. Go to: https://github.com/settings/personal-access-tokens/new
+2. Fill in the details:
+   - **Token name**: `Enterprise Portal Release Token`
+   - **Resource owner**: `slackernews`
+   - **Repositories**: `slackernews/slackernews-enterprise-portal`
+4. Under **Repository permissions**:
+   - **Contents**: Read and write
+   - **Metadata**: Read
+
 5. Click **Generate token** and **copy the token immediately**
 
 ---
 
 ## Step 2: Store the Token as a Repository Secret
 
-Set the token as `TAP_TOKEN` on `slackernews/cli`:
+Set the tokens as secrets on `slackernews/cli`:
 
 ```bash
 # Via gh CLI
 echo "ghp_xxxxxxxx" | gh secret set TAP_TOKEN --repo slackernews/cli
+echo "ghp_xxxxxxxx" | gh secret set ENTERPRISE_PORTAL_TOKEN --repo slackernews/cli
 
 # Or from a file
-gh secret set TAP_TOKEN --repo slackernews/cli < /path/to/token.txt
+gh secret set TAP_TOKEN --repo slackernews/cli < /path/to/tap-token.txt
+gh secret set ENTERPRISE_PORTAL_TOKEN --repo slackernews/cli < /path/to/portal-token.txt
 ```
 
 Or via the web UI: https://github.com/slackernews/cli/settings/secrets/actions
@@ -94,16 +113,18 @@ The workflow will:
 3. Publish Homebrew formula to `slackernews/homebrew-tap`
 4. Publish Scoop manifest to `slackernews/scoop-bucket`
 5. Generate Windows MSI installer
+6. Open PRs to `slackernews/slackernews-enterprise-portal` updating `assets/` on both `main` and the version branch
 
 ---
 
 ## Required Permissions Summary
 
-| Repository | Permission | Use Case |
-|------------|------------|----------|
-| `slackernews/cli` | Contents: read/write | Create GitHub Releases |
-| `slackernews/homebrew-tap` | Contents: read/write | Update Homebrew formula |
-| `slackernews/scoop-bucket` | Contents: read/write | Update Scoop manifest |
+| Repository | Permission | Use Case | Token secret |
+|------------|------------|----------|--------------|
+| `slackernews/cli` | Contents: read/write | Create GitHub Releases | `GITHUB_TOKEN` |
+| `slackernews/homebrew-tap` | Contents: read/write | Update Homebrew formula | `TAP_TOKEN` |
+| `slackernews/scoop-bucket` | Contents: read/write | Update Scoop manifest | `TAP_TOKEN` |
+| `slackernews/slackernews-enterprise-portal` | Contents: read/write | Publish release binaries to portal | `ENTERPRISE_PORTAL_TOKEN` |
 
 ---
 
@@ -112,9 +133,10 @@ The workflow will:
 | Issue | Solution |
 |-------|----------|
 | `401 Bad credentials` | Regenerate the PAT — it may have expired or been revoked |
-| `403 Resource not accessible` | Check the PAT has access to all 3 repos and Contents: read/write |
+| `403 Resource not accessible` | Check the PAT has access to all required repos and Contents: read/write |
 | Homebrew tap not updating | Verify `HOMEBREW_TAP_GITHUB_TOKEN` env var is set in the workflow |
 | Scoop bucket not updating | Verify `SCOOP_BUCKET_GITHUB_TOKEN` env var is set in the workflow |
+| Enterprise portal PRs not created | Verify `ENTERPRISE_PORTAL_TOKEN` secret is set and has access to `slackernews/slackernews-enterprise-portal` |
 
 ---
 
