@@ -1,0 +1,29 @@
+{
+    "version": "{{ .Version }}",
+    "description": "SlackerNews CLI for terminal-based link browsing",
+    "homepage": "https://slackernews.io",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/slackernews/cli/releases/download/v{{ .Version }}/slackernews_{{ .Version }}_Windows_x86_64.zip",
+            "hash": "{{ index .Hash \"64bit\" }}"
+        },
+        "arm64": {
+            "url": "https://github.com/slackernews/cli/releases/download/v{{ .Version }}/slackernews_{{ .Version }}_Windows_arm64.zip",
+            "hash": "{{ index .Hash \"arm64\" }}"
+        }
+    },
+    "bin": "slackernews.exe",
+    "depends": ["git"],
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/slackernews/cli/releases/download/v$version/slackernews_$version_Windows_x86_64.zip"
+            },
+            "arm64": {
+                "url": "https://github.com/slackernews/cli/releases/download/v$version/slackernews_$version_Windows_arm64.zip"
+            }
+        }
+    }
+}

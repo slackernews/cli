@@ -1,28 +1,62 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
+	"github.com/slackernews/cli/pkg/api"
 	"github.com/spf13/cobra"
 )
 
-var globalInsecure bool
+var (
+	allowInsecure bool
+
+	// Set via ldflags at build time.
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
 
 var rootCmd = &cobra.Command{
-	Use:   "slackernews",
-	Short: "SlackerNews CLI for terminal-based link browsing",
-	Long: `Browse top links, vote, and comment on SlackerNews
+	Use:     "slackernews",
+	Short:   "SlackerNews CLI for terminal-based link browsing",
+	Long:    `Browse top links, vote, and comment on SlackerNews
 directly from your terminal.`,
+	Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date),
 }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		os.Exit(exitCodeFor(err))
 	}
 }
 
+func exitCodeFor(err error) int {
+	var authErr *api.AuthError
+	if errors.As(err, &authErr) {
+		return 2
+	}
+
+	var netErr *api.NetworkError
+	if errors.As(err, &netErr) {
+		return 3
+	}
+
+	var srvErr *api.ServerError
+	if errors.As(err, &srvErr) {
+		return 4
+	}
+
+	var rateErr *api.RateLimitError
+	if errors.As(err, &rateErr) {
+		return 5
+	}
+
+	return 1
+}
+
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&globalInsecure, "insecure", false, "Allow non-HTTPS URLs (development only)")
+	rootCmd.PersistentFlags().BoolVar(&allowInsecure, "insecure", false, "Allow non-HTTPS URLs (development only)")
 }

@@ -19,3 +19,8 @@ go.work
 
 # Binary
 slackernews
+cli
+
+# GoReleaser
+/dist/
+msi-build/
