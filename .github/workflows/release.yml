@@ -45,7 +45,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p msi-build
           cp dist/slackernews_windows_amd64_v1/slackernews.exe msi-build/
-          sed "s|$(var.Version)|$VERSION|g; s|$(var.Platform)|x64|g; s|$(var.ProgramFilesFolder)|ProgramFiles64Folder|g" packaging/windows/slackernews.wxs > msi-build/slackernews.wxs
+          sed "s|Version=\"\$(var.Version)\"|Version=\"$VERSION\"|g" packaging/windows/slackernews.wxs > msi-build/slackernews.wxs
           wixl -v msi-build/slackernews.wxs -o dist/slackernews_${GITHUB_REF_NAME}_windows_x86_64.msi
 
       - name: Upload MSI to Release
