@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product Id="*" UpgradeCode="12345678-1234-1234-1234-123456789012"
-           Name="SlackerNews CLI" Version="1.0.0" Manufacturer="SlackerNews"
+           Name="SlackerNews CLI" Version="$(var.Version)" Manufacturer="SlackerNews"
            Language="1033" Codepage="1252">
     <Package InstallerVersion="200" Compressed="yes" Comments="SlackerNews CLI Installer" Platform="x64" />
     <Media Id="1" Cabinet="slackernews.cab" EmbedCab="yes" />
