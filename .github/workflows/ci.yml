@@ -13,23 +13,6 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: stable
-
-      - name: Run tests
-        run: go test -v ./...
-
-      - name: Build
-        run: go build -v ./...
-
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -46,3 +29,117 @@ jobs:
         with:
           version: v2.12.2
           args: --timeout=5m
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Build
+        run: go build -v ./...
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout CLI
+        uses: actions/checkout@v4
+        with:
+          path: cli
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build CLI
+        run: |
+          cd cli
+          go build -o slackernews .
+
+      - name: Checkout server
+        uses: actions/checkout@v4
+        with:
+          repository: slackernews/slackernews
+          # TODO: Change to `main` once server API token auth PR (#127) is merged
+          ref: feat/api-token-auth
+          path: server
+
+      - name: Set up Node.js for server
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: server/slackernews/package-lock.json
+
+      - name: Install server dependencies
+        run: |
+          cd server/slackernews
+          npm ci
+
+      - name: Start server
+        run: |
+          cd server/slackernews
+          DB_URI="sqlite:/tmp/cli-integration.db" npm run dev &
+          echo $! > /tmp/server.pid
+          # Wait for server to be ready
+          for i in {1..30}; do
+            if curl -s http://localhost:3000 > /dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Server failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Generate test token
+        id: token
+        run: |
+          cd server/slackernews
+          TOKEN=$(DB_URI="sqlite:/tmp/cli-integration.db" node scripts/ci-create-test-token.js)
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Configure CLI
+        run: |
+          cd cli
+          ./slackernews configure --url http://localhost:3000 --insecure
+
+      - name: Test CLI commands
+        env:
+          SLACKERNEWS_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          cd cli
+          echo "=== Testing top command ==="
+          ./slackernews top --insecure
+          
+          echo "=== Testing search command ==="
+          ./slackernews search kubernetes --insecure
+          
+          echo "=== Testing upvote command ==="
+          ./slackernews upvote "https://www.enterpriseready.io" --insecure
+          
+          echo "=== Testing comment command ==="
+          ./slackernews comment "https://www.enterpriseready.io" "CI integration test" --insecure
+          
+          echo "=== Testing unvote command ==="
+          ./slackernews unvote "https://www.enterpriseready.io" --insecure
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f /tmp/server.pid ]; then
+            kill $(cat /tmp/server.pid) || true
+          fi
