@@ -37,6 +37,7 @@ func (e *RateLimitError) Error() string { return e.Message }
 type FlexBool bool
 
 // UnmarshalJSON accepts bool, integer 0/1, or float64 0/1.
+// Any non-zero integer/float is treated as true (defensive).
 func (fb *FlexBool) UnmarshalJSON(data []byte) error {
 	// Try bool first
 	var b bool
@@ -60,6 +61,14 @@ func (fb *FlexBool) UnmarshalJSON(data []byte) error {
 	}
 
 	return fmt.Errorf("cannot unmarshal %q into FlexBool", data)
+}
+
+// MarshalJSON returns a JSON boolean.
+func (fb FlexBool) MarshalJSON() ([]byte, error) {
+	if fb {
+		return []byte("true"), nil
+	}
+	return []byte("false"), nil
 }
 
 // Link represents a SlackerNews link.

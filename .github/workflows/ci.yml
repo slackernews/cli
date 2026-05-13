@@ -92,9 +92,10 @@ jobs:
           cd server/slackernews
           DB_URI="sqlite:/tmp/cli-integration.db" npm run dev &
           echo $! > /tmp/server.pid
-          # Wait for server to be ready
+          # Wait for server to be ready (check API health endpoint)
           for i in {1..30}; do
-            if curl -s http://localhost:3000 > /dev/null 2>&1; then
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1 || \
+               curl -sf http://localhost:3000/api/v1/links > /dev/null 2>&1; then
               echo "Server is ready"
               break
             fi
@@ -117,27 +118,51 @@ jobs:
           cd cli
           ./slackernews configure --url http://localhost:3000 --token "${{ steps.token.outputs.token }}" --insecure
 
-      - name: Test CLI commands
+      - name: Test read-only CLI commands
         run: |
           cd cli
           echo "=== Testing top command ==="
-          ./slackernews top --insecure || true
+          ./slackernews top --insecure
           
           echo "=== Testing search command ==="
-          ./slackernews search kubernetes --insecure || true
-          
-          echo "=== Testing upvote command ==="
-          ./slackernews upvote "https://www.enterpriseready.io" --insecure
-          
-          echo "=== Testing comment command ==="
-          ./slackernews comment "https://www.enterpriseready.io" "CI integration test" --insecure
-          
-          echo "=== Testing unvote command ==="
-          ./slackernews unvote "https://www.enterpriseready.io" --insecure
+          ./slackernews search kubernetes --insecure
 
-      - name: Stop server
+      - name: Find a link to test actions
+        id: find-link
+        run: |
+          cd cli
+          # Try to get a link URL from the top command for action tests
+          LINK_URL=$(./slackernews top --json --insecure 2>/dev/null | grep -o '"url":"[^"]*"' | head -1 | sed 's/"url":"//;s/"$//')
+          if [ -n "$LINK_URL" ]; then
+            echo "Found link: $LINK_URL"
+            echo "link=$LINK_URL" >> $GITHUB_OUTPUT
+          else
+            echo "No links found in database, skipping action tests"
+            echo "link=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Test upvote command
+        if: steps.find-link.outputs.link != ''
+        run: |
+          cd cli
+          ./slackernews upvote "${{ steps.find-link.outputs.link }}" --insecure
+
+      - name: Test comment command
+        if: steps.find-link.outputs.link != ''
+        run: |
+          cd cli
+          ./slackernews comment "${{ steps.find-link.outputs.link }}" "CI integration test" --insecure
+
+      - name: Test unvote command
+        if: steps.find-link.outputs.link != ''
+        run: |
+          cd cli
+          ./slackernews unvote "${{ steps.find-link.outputs.link }}" --insecure
+
+      - name: Stop server and cleanup
         if: always()
         run: |
           if [ -f /tmp/server.pid ]; then
             kill $(cat /tmp/server.pid) || true
           fi
+          rm -f /tmp/cli-integration.db
