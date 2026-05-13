@@ -32,13 +32,43 @@ func (e *NetworkError) Error() string  { return e.Message }
 func (e *ServerError) Error() string   { return e.Message }
 func (e *RateLimitError) Error() string { return e.Message }
 
+// FlexBool unmarshals from either a JSON boolean or integer (0/1).
+// This handles APIs where SQLite/ORMs return booleans as integers.
+type FlexBool bool
+
+// UnmarshalJSON accepts bool, integer 0/1, or float64 0/1.
+func (fb *FlexBool) UnmarshalJSON(data []byte) error {
+	// Try bool first
+	var b bool
+	if err := json.Unmarshal(data, &b); err == nil {
+		*fb = FlexBool(b)
+		return nil
+	}
+
+	// Try integer
+	var i int
+	if err := json.Unmarshal(data, &i); err == nil {
+		*fb = FlexBool(i != 0)
+		return nil
+	}
+
+	// Try float64 (e.g., 0.0 / 1.0)
+	var f float64
+	if err := json.Unmarshal(data, &f); err == nil {
+		*fb = FlexBool(f != 0)
+		return nil
+	}
+
+	return fmt.Errorf("cannot unmarshal %q into FlexBool", data)
+}
+
 // Link represents a SlackerNews link.
 type Link struct {
-	URL      string `json:"url"`
-	Domain   string `json:"domain"`
-	Title    string `json:"title"`
-	Icon     string `json:"icon"`
-	IsHidden bool   `json:"isHidden"`
+	URL      string   `json:"url"`
+	Domain   string   `json:"domain"`
+	Title    string   `json:"title"`
+	Icon     string   `json:"icon"`
+	IsHidden FlexBool `json:"isHidden"`
 }
 
 // FirstShare represents the first share metadata.
@@ -58,7 +88,7 @@ type RenderableLink struct {
 	Link         Link       `json:"link"`
 	FirstShare   FirstShare `json:"firstShare"`
 	DisplayScore float64    `json:"displayScore"`
-	IsUpvoted    bool       `json:"isUpvoted"`
+	IsUpvoted    FlexBool   `json:"isUpvoted"`
 	ReplyCount   int        `json:"replyCount"`
 }
 

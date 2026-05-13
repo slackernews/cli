@@ -101,7 +101,7 @@ func FormatJSON(links []api.RenderableLink) ([]byte, error) {
 			Title:         linkTitle(link),
 			Score:         link.DisplayScore,
 			ReplyCount:    link.ReplyCount,
-			IsUpvoted:     link.IsUpvoted,
+			IsUpvoted:     bool(link.IsUpvoted),
 			Age:           formatAge(link.FirstShare.SharedAt),
 			FirstSharedBy: link.FirstShare.FullName,
 		}
