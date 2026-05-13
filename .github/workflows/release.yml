@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.SCOOP_BUCKET_GITHUB_TOKEN }}
+
+      - name: Install WiX tools (for MSI)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y msitools
+
+      - name: Generate Windows MSI
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p msi-build
+          cp dist/slackernews_windows_amd64_v1/slackernews.exe msi-build/
+          sed "s|$(var.Version)|$VERSION|g; s|$(var.Platform)|x64|g; s|$(var.ProgramFilesFolder)|ProgramFiles64Folder|g" packaging/windows/slackernews.wxs > msi-build/slackernews.wxs
+          wixl -v msi-build/slackernews.wxs -o dist/slackernews_${GITHUB_REF_NAME}_windows_x86_64.msi
+
+      - name: Upload MSI to Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" dist/slackernews_${GITHUB_REF_NAME}_windows_x86_64.msi --clobber

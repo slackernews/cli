@@ -1,0 +1,132 @@
+# .goreleaser.yml
+# Documentation: https://goreleaser.com
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: slackernews
+    binary: slackernews
+    main: .
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    goamd64:
+      - v1
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/slackernews/cli/cmd.version={{.Version}}
+      - -X github.com/slackernews/cli/cmd.commit={{.Commit}}
+      - -X github.com/slackernews/cli/cmd.date={{.Date}}
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^feat[:\(]'
+      order: 0
+    - title: Bug fixes
+      regexp: '^fix[:\(]'
+      order: 1
+    - title: Other
+      order: 999
+
+release:
+  github:
+    owner: slackernews
+    name: cli
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Slackernews CLI {{ .Version }}
+
+    Install via Homebrew:
+    ```bash
+    brew install slackernews/tap/slackernews
+    ```
+
+    Or download the binary for your platform below.
+  footer: |
+    ---
+    Full changelog: https://github.com/slackernews/cli/blob/main/CHANGELOG.md
+
+brews:
+  - name: slackernews
+    repository:
+      owner: slackernews
+      name: homebrew-tap
+    directory: Formula
+    homepage: "https://slackernews.io"
+    description: "SlackerNews CLI for terminal-based link browsing"
+    license: "MIT"
+    install: |
+      bin.install "slackernews"
+    test: |
+      system "#{bin}/slackernews", "--version"
+
+scoops:
+  - repository:
+      owner: slackernews
+      name: scoop-bucket
+    directory: bucket
+    homepage: "https://slackernews.io"
+    description: "SlackerNews CLI for terminal-based link browsing"
+    license: MIT
+    depends: ["git"]
+
+nfpms:
+  - id: packages
+    package_name: slackernews
+    vendor: SlackerNews
+    homepage: https://slackernews.io
+    maintainer: SlackerNews Team <team@slackernews.io>
+    description: SlackerNews CLI for terminal-based link browsing
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+      - archlinux
+    dependencies:
+      - git
+    bindir: /usr/local/bin
+    section: utils
+    priority: optional
+
+# MSI generation is handled in the release workflow via wixl

@@ -9,13 +9,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var allowInsecure bool
+var (
+	allowInsecure bool
+
+	// Set via ldflags at build time.
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
 
 var rootCmd = &cobra.Command{
-	Use:   "slackernews",
-	Short: "SlackerNews CLI for terminal-based link browsing",
-	Long: `Browse top links, vote, and comment on SlackerNews
+	Use:     "slackernews",
+	Short:   "SlackerNews CLI for terminal-based link browsing",
+	Long:    `Browse top links, vote, and comment on SlackerNews
 directly from your terminal.`,
+	Version: fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date),
 }
 
 func Execute() {
