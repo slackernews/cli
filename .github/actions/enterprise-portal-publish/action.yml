@@ -41,6 +41,7 @@ runs:
         PORTAL_DIR="/tmp/enterprise-portal"
         rm -rf "$PORTAL_DIR"
 
+        gh auth setup-git
         gh repo clone "$PORTAL_REPO" "$PORTAL_DIR"
         cd "$PORTAL_DIR"
         git fetch origin
