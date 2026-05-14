@@ -62,5 +62,5 @@ jobs:
       - name: Publish binaries to enterprise portal
         uses: ./.github/actions/enterprise-portal-publish
         with:
-          github-token: ${{ secrets.ENTERPRISE_PORTAL_TOKEN }}
+          github-token: ${{ secrets.TAP_TOKEN }}
           release-tag: ${{ github.ref_name }}
