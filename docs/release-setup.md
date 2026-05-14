@@ -134,8 +134,8 @@ The workflow will:
 |-------|----------|
 | `401 Bad credentials` | Regenerate the PAT — it may have expired or been revoked |
 | `403 Resource not accessible` | Check the PAT has access to all required repos and Contents: read/write |
-| Homebrew tap not updating | Verify `HOMEBREW_TAP_GITHUB_TOKEN` env var is set in the workflow |
-| Scoop bucket not updating | Verify `SCOOP_BUCKET_GITHUB_TOKEN` env var is set in the workflow |
+| Homebrew tap not updating | Verify `TAP_TOKEN` secret is set and referenced in the workflow and `.goreleaser.yml` |
+| Scoop bucket not updating | Verify `TAP_TOKEN` secret is set and referenced in the workflow and `.goreleaser.yml` |
 | Enterprise portal PRs not created | Verify `ENTERPRISE_PORTAL_TOKEN` secret is set and has access to `slackernews/slackernews-enterprise-portal` |
 
 ---

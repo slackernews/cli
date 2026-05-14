@@ -32,8 +32,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Fine-grained PAT with read/write access to cli, homebrew-tap, scoop-bucket
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.TAP_TOKEN }}
-          SCOOP_BUCKET_GITHUB_TOKEN: ${{ secrets.TAP_TOKEN }}
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
 
       - name: Install WiX tools (for MSI)
         run: |
