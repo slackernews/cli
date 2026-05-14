@@ -3,7 +3,7 @@
   <Product Id="*" UpgradeCode="12345678-1234-1234-1234-123456789012"
            Name="SlackerNews CLI" Version="$(var.Version)" Manufacturer="SlackerNews"
            Language="1033" Codepage="1252">
-    <Package InstallerVersion="200" Compressed="yes" Comments="SlackerNews CLI Installer" Platform="x64" />
+    <Package InstallerVersion="200" Compressed="yes" Comments="SlackerNews CLI Installer" />
     <Media Id="1" Cabinet="slackernews.cab" EmbedCab="yes" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -11,7 +11,6 @@
         <Directory Id="INSTALLDIR" Name="SlackerNews">
           <Component Id="slackernews.exe" Guid="*">
             <File Id="slackernews.exe" Source="slackernews.exe" Name="slackernews.exe" KeyPath="yes" />
-            <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]" Permanent="no" Part="last" Action="set" System="no" />
           </Component>
         </Directory>
       </Directory>
