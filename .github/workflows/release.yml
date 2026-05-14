@@ -64,3 +64,4 @@ jobs:
         with:
           github-token: ${{ secrets.TAP_TOKEN }}
           release-tag: ${{ github.ref_name }}
+          workspace-path: ${{ github.workspace }}
