@@ -43,7 +43,7 @@ jobs:
       - name: Install WiX tools (for MSI)
         run: |
           sudo apt-get update
-          sudo apt-get install -y msitools
+          sudo apt-get install -y wixl
 
       - name: Generate Windows MSI
         run: |
