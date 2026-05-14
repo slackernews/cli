@@ -91,6 +91,7 @@ brews:
     repository:
       owner: slackernews
       name: homebrew-tap
+      token: "{{ .Env.TAP_TOKEN }}"
     directory: Formula
     homepage: "https://slackernews.io"
     description: "SlackerNews CLI for terminal-based link browsing"
@@ -104,6 +105,7 @@ scoops:
   - repository:
       owner: slackernews
       name: scoop-bucket
+      token: "{{ .Env.TAP_TOKEN }}"
     directory: bucket
     homepage: "https://slackernews.io"
     description: "SlackerNews CLI for terminal-based link browsing"
